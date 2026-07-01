@@ -1,6 +1,5 @@
 import os
 
-from app.utils.config import prompts
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -10,18 +9,9 @@ client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-async def ask_llm(question:str):
+async def ask_llm(messages):
     chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "system",
-                "content": prompts["system"],
-            },
-            {
-                "role": "user", 
-                "content": question
-            },
-        ],
+        messages=messages,
         model="llama-3.3-70b-versatile",
     )
 

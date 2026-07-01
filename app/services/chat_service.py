@@ -1,35 +1,37 @@
-import uuid
+from uuid import UUID
 
-from app.schema.chatmessage_schema import Chatmessage
-from app.schema.conversation_schema import Conversation
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
+from app.database.connection import get_db
+from app.models.chat_model import ChatResponse
+from app.services.build_gpt_messages_service import build_get_messages
+from app.services.conversation_service import get_conversation
+from app.services.message_service import get_messages, save_message
+from app.services.openai_service import ask_llm
 
 
-def create_conversation(db):
-    conversation = Conversation(
-        # id = str(uuid.uuid4()),
-        title = "New Chat"
-    )
+async def process_chat(request: str, conversation_id: UUID, db: Session=Depends(get_db)):
+    # 1
+    conversation = get_conversation(db, conversation_id)
 
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
+    if conversation is None:
+        return {}
 
-    return conversation
+    # 2
+    save_message(db, conversation_id,content=request, role="user")
 
-def save_message(db, conversation_id:uuid.UUID, content:str, role:str):
-    message = Chatmessage(
-        conversation_id=conversation_id,
-        role=role,
-        content=content
-    )
+    # 3
+    history = get_messages(db, conversation_id)
 
-    db.add(message)
-    db.commit()
-    db.refresh(message)
+    # 4
+    messages = build_get_messages(history=history)
 
-    return message
+    # 5
+    answer = await ask_llm(messages)
 
-def get_messages(db, conversation_id: uuid.UUID):
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    # 6
+    save_message(db, conversation_id,content=answer, role="assistant")
 
-    return conversation.messages
+    # 7
+    return ChatResponse(answer=answer)
