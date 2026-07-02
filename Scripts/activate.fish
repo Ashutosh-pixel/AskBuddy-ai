@@ -33,10 +33,10 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/salty/Desktop/project/AskBuddy-ai
+set -gx VIRTUAL_ENV 'C:\Users\ashus\Documents\project\AskBuddy-ai'
 
 set -gx _OLD_VIRTUAL_PATH $PATH
-set -gx PATH "$VIRTUAL_ENV/"bin $PATH
+set -gx PATH "$VIRTUAL_ENV/"Scripts $PATH
 set -gx VIRTUAL_ENV_PROMPT AskBuddy-ai
 
 # Unset PYTHONHOME if set.
