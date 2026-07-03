@@ -1,13 +1,15 @@
 from uuid import UUID
 
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.models.chat_model import ChatRequest
 from app.services.chat_service import process_chat
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.services.conversation_service import create_conversation
+from app.services.process_chat_stream_service import process_chat_stream
 
 chatRouter = APIRouter(prefix="/api")
 
@@ -33,7 +35,7 @@ def create_new_conversation(db: Session=Depends(get_db)):
 #     save_message(db,conversation_id,content.content,"user")
 
 #     return True
-    
+
 # @chatRouter.get("/conversations/{conversation_id}/messages")
 # def get_conversation_messages(conversation_id: UUID, db: Session=Depends(get_db)):
 
@@ -50,3 +52,25 @@ def create_new_conversation(db: Session=Depends(get_db)):
 @chatRouter.post("/chat")
 async def chat(message: ChatRequest, db: Session=Depends(get_db)):
     return await process_chat(message.message, message.conversation_id, db)
+
+@chatRouter.post("/chat/stream")
+async def chat_stream(request: Request,message: ChatRequest, db: Session=Depends(get_db)):
+    generator = process_chat_stream(
+        request=request,
+        message=message.message,
+        conversation_id=message.
+        conversation_id,
+        db=db
+    )
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        # "X-Accel-Buffering": "no",   # helpful if behind nginx
+    }
+
+    return StreamingResponse(
+        content=generator,
+        media_type="text/event-stream",
+        headers=headers
+    )

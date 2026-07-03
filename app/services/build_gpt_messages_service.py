@@ -15,5 +15,4 @@ def build_get_messages(history):
             "content": message.content
         })
 
-    print("history",messages)
     return messages
