@@ -1,8 +1,10 @@
-from uuid import UUID
+import time
+import uuid
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.core.logger import logger
 from app.database.connection import get_db
 from app.models.chat_model import ChatRequest
 from app.services.chat_service import process_chat
@@ -24,6 +26,9 @@ chatRouter = APIRouter(prefix="/api")
 @chatRouter.post("/conversations")
 def create_new_conversation(db: Session=Depends(get_db)):
     conversation = create_conversation(db)
+
+    request_id = uuid.uuid4().hex[:8]
+    logger.info(f"[{request_id}] conversation created")
 
     return {
         "conversation_id" : conversation.id
@@ -55,11 +60,17 @@ async def chat(message: ChatRequest, db: Session=Depends(get_db)):
 
 @chatRouter.post("/chat/stream")
 async def chat_stream(request: Request,message: ChatRequest, db: Session=Depends(get_db)):
+    request_id = uuid.uuid4().hex[:8]
+    logger.info(f"[{request_id}] request started")
+
+    start = time.perf_counter()
+
     generator = process_chat_stream(
         request=request,
+        request_id=request_id,
+        start=start,
         message=message.message,
-        conversation_id=message.
-        conversation_id,
+        conversation_id=message.conversation_id,
         db=db
     )
 
