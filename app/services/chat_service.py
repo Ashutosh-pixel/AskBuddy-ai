@@ -8,7 +8,7 @@ from app.models.chat_model import ChatResponse
 from app.services.build_gpt_messages_service import build_get_messages
 from app.services.conversation_service import get_conversation
 from app.services.message_service import get_messages, save_message
-from app.services.openai_service import ask_llm
+from app.services.llm_service import ask_llm
 
 
 async def process_chat(request: str, conversation_id: UUID, db: Session=Depends(get_db)):

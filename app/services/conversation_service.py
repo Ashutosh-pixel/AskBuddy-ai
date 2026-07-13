@@ -9,7 +9,7 @@ from app.schema.conversation_schema import Conversation
 def create_conversation(db):
     conversation = Conversation(
         # id = str(uuid.uuid4()),
-        title = "New Chat"
+        # title = "New Chat"
     )
 
     db.add(conversation)

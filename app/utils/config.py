@@ -25,3 +25,17 @@
 #   - Do not mention that an answer is restricted because of rules.
 #   """
 # }
+
+
+titlePrompt= {
+    "system": """
+    Generate a short conversation title.
+
+    Rules:
+
+    - Maximum 5 words.
+    - Do not use quotation marks.
+    - Do not add punctuation.
+    - Return only the title.
+    """
+}
