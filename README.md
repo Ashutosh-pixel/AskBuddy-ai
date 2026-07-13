@@ -74,8 +74,8 @@ app/
 ### Clone the repository
 
 ```bash
-git clone https://github.com/your-username/ai-chat-backend.git
-cd ai-chat-backend
+git clone https://github.com/Ashutosh-pixel/AskBuddy-ai.git
+cd AskBuddy-ai
 ```
 
 ### Create a virtual environment
