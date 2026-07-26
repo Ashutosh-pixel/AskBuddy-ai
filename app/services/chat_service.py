@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_db
 from app.models.chat_model import ChatResponse
@@ -11,18 +11,18 @@ from app.services.message_service import get_messages, save_message
 from app.services.llm_service import ask_llm
 
 
-async def process_chat(request: str, conversation_id: UUID, db: Session=Depends(get_db)):
+async def process_chat(request: str, conversation_id: UUID, db: AsyncSession=Depends(get_db)):
     # 1
-    conversation = get_conversation(db, conversation_id)
+    conversation = await get_conversation(db, conversation_id)
 
     if conversation is None:
         return {}
 
     # 2
-    save_message(db, conversation_id,content=request, role="user")
+    await save_message(db, conversation_id, content=request, role="user")
 
     # 3
-    history = get_messages(db, conversation_id)
+    history = await get_messages(db, conversation_id)
 
     # 4
     messages = build_get_messages(history=history)
@@ -31,7 +31,7 @@ async def process_chat(request: str, conversation_id: UUID, db: Session=Depends(
     answer = await ask_llm(messages)
 
     # 6
-    save_message(db, conversation_id,content=answer, role="assistant")
+    await save_message(db, conversation_id, content=answer, role="assistant")
 
     # 7
     return ChatResponse(answer=answer)
