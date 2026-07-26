@@ -3,10 +3,10 @@ import time
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.core.logger import logger
-from app.database.connection import get_db
+from app.database.connection import AsyncSession, get_db
 from app.schema.conversation_schema import Conversation
 from app.services.build_gpt_messages_service import build_get_messages
 from app.services.conversation_service import get_conversation
@@ -16,21 +16,12 @@ from app.services.stream_llm_service import stream_llm
 from app.utils.config import titlePrompt
 
 
-async def process_chat_stream(request: Request,message: str, request_id: str, start:float, conversation_id: UUID, db:Session=Depends(get_db)):
+async def process_chat_stream(request: Request,message: str, request_id: str, start:float, conversation_id: UUID, conversation:Conversation, db:AsyncSession=Depends(get_db)):
 
-    conversation = get_conversation(db,conversation_id)
-    logger.info(f"[{request_id}] loading conversation from database")
-
-    if conversation is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Conversation not found"
-        )
-
-    save_message(db, conversation_id, message, role="user")
+    await save_message(db, conversation_id, message, role="user")
     logger.info(f"[{request_id}] save user prompt in the database")
 
-    history = get_messages(db,conversation_id)
+    history = await get_messages(db,conversation_id)
     logger.info(f"[{request_id}] loading history from database")
 
     messages = build_get_messages(history=history)
@@ -77,7 +68,7 @@ async def process_chat_stream(request: Request,message: str, request_id: str, st
 
     finally:
         logger.info(f"[{request_id}] save LLM prompt in the database")
-        save_message(db,conversation_id,content=full_response,role="assistant")
+        await save_message(db,conversation_id,content=full_response,role="assistant")
         duration = time.perf_counter()-start
         logger.info(f"[{request_id}] completed in {duration:.2f}s")
 
@@ -90,8 +81,10 @@ async def process_chat_stream(request: Request,message: str, request_id: str, st
                     print(f"TITLE= {title}")
 
                     # save title in db
-                    db.query(Conversation).filter(Conversation.id == conversation_id).update({"title": title})
-                    db.commit()
+                    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+                    resp = result.scalar_one()
+                    resp.title = title
+                    await db.commit()
                     logger.info(f"[{request_id}] title saved in DB")
 
             except Exception:
