@@ -132,9 +132,9 @@ uvicorn app.main:app --reload
 * [ ] Background workers
 * [ ] Metrics & monitoring
 * [ ] Redis caching
-* [ ] Vector database integration
+* [x] Vector database integration
 * [ ] Tool calling
-* [ ] RAG support
+* [x] RAG support
 * [ ] Multi-model support
 * [ ] Docker deployment
 * [ ] CI/CD pipeline
