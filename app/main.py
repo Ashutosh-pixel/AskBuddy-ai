@@ -12,10 +12,16 @@ from app.services.embedding.embedding_service import Embedding
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
+from app.services.vector.qdrant_connection import connect_qdrant,stop_qdrant
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        print("Qdrant connecting...😪")
+        await connect_qdrant()
+        print("Qdrant connected...😃")
 
         print("Loading BGE-M3 Model & Tokenizer into RAM...")
         BGE_M3_TOKENIZER = AutoTokenizer.from_pretrained("BAAI/bge-m3")
@@ -30,6 +36,7 @@ async def lifespan(app: FastAPI):
     yield
     # ==================== SHUTDOWN ====================
     print("Cleaning up resources...")
+    await stop_qdrant()
     await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)

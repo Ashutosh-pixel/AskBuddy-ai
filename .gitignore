@@ -68,3 +68,4 @@ htmlcov/
 .ruff_cache/
 logs/
 *.log
+askbuddy-ai_api_key.txt
