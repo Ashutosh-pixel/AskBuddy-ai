@@ -23,7 +23,7 @@ async def fetch_document(documentid:UUID, db:AsyncSession=Depends(get_db)):
     return await parser_service(documentid,db=db)
 
 @documentRouter.post("/embed")
-async def create_embeddings(request: Request, text: str, document_id: UUID):
+async def create_embeddings(request: Request, user_id: UUID, text: str, document_id: UUID):
     tokenizer = request.app.state.tokenizer
     embedding_service: Embedding = request.app.state.embedding_service
 
@@ -35,7 +35,7 @@ async def create_embeddings(request: Request, text: str, document_id: UUID):
     embeddings = embedding_service.embed_chunks(chunks=chunks)
 
     # store embeddings in qdrant
-    await store_embeddings(document_id=document_id, chunks=chunks, embeddings=embeddings)
+    await store_embeddings(user_id=user_id, document_id=document_id, chunks=chunks, embeddings=embeddings)
 
     return {
         "message": "Chunks embedded successfully",
@@ -54,7 +54,7 @@ async def search(request:Request, data: CustomQuery):
     embeddings = embedding_service.embed_chunks(chunks=chunks)[0]
 
     # vector similarity search
-    context = await similarity_search(document_id=data.document_id,embedding=embeddings,top_k=data.top_k)
+    context = await similarity_search(user_id=data.user_id, embedding=embeddings, top_k=data.top_k)
 
     # LLM service
     result = await RAG_llm(context=context,question=data.text)

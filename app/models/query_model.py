@@ -3,6 +3,6 @@ from uuid import UUID
 
 
 class CustomQuery(BaseModel):
-    document_id: UUID
-    top_k:int
-    text:str
+    user_id: UUID
+    top_k: int
+    text: str
