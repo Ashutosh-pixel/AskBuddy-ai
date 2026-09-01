@@ -11,7 +11,7 @@ client = AsyncGroq(
 
 async def stream_llm(messages):
     stream = await client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-20b",
         messages=messages,
         stream=True
     )

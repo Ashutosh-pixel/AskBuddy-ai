@@ -24,8 +24,8 @@ chatRouter = APIRouter(prefix="/api")
 #     }
 
 @chatRouter.post("/conversations")
-async def create_new_conversation(db: AsyncSession=Depends(get_db)):
-    conversation = await create_conversation(db)
+async def create_new_conversation(user_id: uuid.UUID, db: AsyncSession=Depends(get_db)):
+    conversation = await create_conversation(user_id, db)
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(f"[{request_id}] conversation created")

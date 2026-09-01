@@ -15,8 +15,8 @@ from app.services.rag.rag_llm_service import RAG_llm
 documentRouter = APIRouter(prefix="/api/documents")
 
 @documentRouter.post("/upload")
-async def upload_document(file: UploadFile, db:AsyncSession=Depends(get_db)):
-    return await document_service(file=file,db=db)
+async def upload_document(user_id: UUID, file: UploadFile, db:AsyncSession=Depends(get_db)):
+    return await document_service(user_id=user_id, file=file,db=db)
 
 @documentRouter.get("/{documentid}")
 async def fetch_document(documentid:UUID, db:AsyncSession=Depends(get_db)):

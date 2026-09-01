@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 import uuid
 
 from sqlalchemy import DateTime, Uuid, func, Enum as SQLEnum
@@ -8,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.schema import ForeignKey
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.schema.conversation_schema import Conversation
 
 class role(Enum):
     SYSTEM="system"
@@ -28,4 +32,4 @@ class Chatmessage(Base):
         nullable=False
     )
 
-    conversation = relationship("Conversation", back_populates="messages")
+    conversation: Mapped["Conversation"] = relationship(back_populates="messages")

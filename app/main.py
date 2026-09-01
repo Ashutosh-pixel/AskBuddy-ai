@@ -7,7 +7,10 @@ from app.database.connection import engine
 from app.database.base import Base
 
 # import schemas
+import app.schema
+
 from app.routes.document_routes import documentRouter
+from app.routes.user_routes import userRouter
 from app.services.embedding.embedding_service import Embedding
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
@@ -43,3 +46,4 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(router=chatRouter)
 app.include_router(router=documentRouter)
+app.include_router(router=userRouter)
