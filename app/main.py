@@ -12,6 +12,7 @@ from app.services.embedding.embedding_service import Embedding
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
+from app.services.retrieval.reranker import Reranker
 from app.services.vector.qdrant_connection import connect_qdrant,stop_qdrant
 
 @asynccontextmanager
@@ -23,7 +24,7 @@ async def lifespan(app: FastAPI):
         await connect_qdrant()
         print("Qdrant connected...😃")
 
-        print("Loading BGE-M3 Model & Tokenizer into RAM...")
+        print("Loading BGE-M3 Model/Tokenizer/Reranker into RAM...")
         BGE_M3_TOKENIZER = AutoTokenizer.from_pretrained("BAAI/bge-m3")
         BGE_M3_MODEL = SentenceTransformer("BAAI/bge-m3")
         BGE_M3_MODEL.eval()
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
         # app.state (attach model,tokenizer)
         app.state.tokenizer = BGE_M3_TOKENIZER
         app.state.embedding_service = Embedding(model=BGE_M3_MODEL)
+        app.state.reranker = Reranker(model="BAAI/bge-reranker-v2-m3")
         print("Model loaded successfully!")
 
     yield

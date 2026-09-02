@@ -47,14 +47,15 @@ async def create_embeddings(request: Request, text: str, document_id: UUID):
 async def search(request:Request, data: CustomQuery):
     embedding_service: Embedding = request.app.state.embedding_service
 
-    chunks = []
-    chunks.append(data.text)
+    chunks = [data.text]
 
     # embeddings generate
     embeddings = embedding_service.embed_chunks(chunks=chunks)[0]
 
     # vector similarity search
-    context = await similarity_search(document_id=data.document_id,embedding=embeddings,top_k=data.top_k)
+    context = await similarity_search(request, user_id=data.user_id, query=data.text, embedding=embeddings, top_k=data.top_k)
+
+    # print(f"context:{context}")
 
     # LLM service
     result = await RAG_llm(context=context,question=data.text)

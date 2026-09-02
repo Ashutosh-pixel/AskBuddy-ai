@@ -1,10 +1,12 @@
 from uuid import UUID, uuid4
 
+from fastapi import Request
 from qdrant_client.models import FieldCondition, MatchValue, PointStruct, Filter
+from app.services.retrieval.reranker import Reranker
 from app.services.vector.qdrant_connection import client
 import os
 
-async def store_embeddings(document_id:UUID, chunks:list[str], embeddings:list[list[float]]):
+async def store_embeddings(user_id: UUID, document_id: UUID, chunks: list[str], embeddings: list[list[float]]):
 
     if len(chunks) != len(embeddings):
         raise ValueError("Chunks and embeddings count must match")
@@ -18,7 +20,7 @@ async def store_embeddings(document_id:UUID, chunks:list[str], embeddings:list[l
             id=str(uuid4()),
             vector=embedding,
             payload={
-                # "user_id": user_id,    use this when we will make auth system
+                "user_id": str(user_id),
                 "document_id": str(document_id),
                 "chunk_index": index,
                 "text": chunk
@@ -29,21 +31,29 @@ async def store_embeddings(document_id:UUID, chunks:list[str], embeddings:list[l
 
     await client.upsert(collection_name=os.getenv("COLLECTION_NAME"),points=points)
 
-async def similarity_search(document_id: UUID, embedding: list[float], top_k: int):
+async def similarity_search(request: Request, user_id: UUID, query:str, embedding: list[float], top_k: int):
     response= await client.query_points(
         collection_name=os.getenv("COLLECTION_NAME"),
         query=embedding,
         query_filter=Filter(
-            must=[FieldCondition(key="document_id", match=MatchValue(value=str(document_id)))]
-            # must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]  use this when we will make auth system
+            must=[
+                FieldCondition(
+                    key="user_id",
+                    match=MatchValue(value=str(user_id))
+                )
+            ]
         ),
         with_payload=True,
-        limit=top_k
+        limit=top_k,
     )
 
-    result=[]
+    chunks=[]
 
     for point in response.points:
-        result.append(point.payload["text"])
+        chunks.append(point.payload["text"])
 
-    return "\n\n".join(result)
+    reranker = request.app.state.reranker
+
+    reranked = reranker.rerank(query=query, chunks=chunks, top_k=3)
+
+    return "\n\n".join([result["text"] for result in reranked])
