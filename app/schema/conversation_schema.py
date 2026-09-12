@@ -1,10 +1,15 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 import uuid
 
-from sqlalchemy import VARCHAR, DateTime, Uuid, func
+from sqlalchemy import VARCHAR, DateTime, ForeignKey, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.schema.chatmessage_schema import Chatmessage
+    from app.schema.user_schema import User
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -16,5 +21,7 @@ class Conversation(Base):
         server_default=func.now(),
         nullable=False
     )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
-    messages = relationship("Chatmessage", back_populates="conversation")
+    messages: Mapped[list["Chatmessage"]] = relationship(back_populates="conversation")
+    user: Mapped["User"] = relationship(back_populates="conversations")

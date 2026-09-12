@@ -1,12 +1,16 @@
+from typing import TYPE_CHECKING
 import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import INTEGER, TEXT, VARCHAR, DateTime, Uuid, func
+from sqlalchemy import INTEGER, TEXT, VARCHAR, DateTime, ForeignKey, Uuid, func
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.schema.user_schema import User
 
 
 class status(Enum):
@@ -30,3 +34,6 @@ class Document(Base):
         server_default=func.now(),
         nullable=True
     )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+
+    user:Mapped["User"] = relationship(back_populates="documents")

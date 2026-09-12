@@ -7,8 +7,9 @@ from app.schema.chatmessage_schema import Chatmessage
 from app.schema.conversation_schema import Conversation
 
 
-async def create_conversation(db: AsyncSession):
+async def create_conversation(user_id: uuid.UUID, db: AsyncSession):
     conversation = Conversation(
+        user_id= user_id
         # id = str(uuid.uuid4()),
         # title = "New Chat"
     )
