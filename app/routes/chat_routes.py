@@ -7,11 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logger import logger
 from app.database.connection import get_db
 from app.models.chat_model import ChatRequest
+from app.services.build_gpt_messages_service import build_get_messages
 from app.services.chat_service import process_chat
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.services.conversation_service import create_conversation, get_conversation
+from app.services.handle import handle
+from app.services.llm.query_formulate_service import query_formulate
+from app.services.message_service import get_messages
 from app.services.process_chat_stream_service import process_chat_stream
+from app.services.queryIntension_service import route
 
 chatRouter = APIRouter(prefix="/api")
 
@@ -96,3 +101,21 @@ async def chat_stream(request: Request,message: ChatRequest, db: AsyncSession=De
         media_type="text/event-stream",
         headers=headers
     )
+
+@chatRouter.post("/queryrewrite")
+async def query_rewrite(message: ChatRequest, db: AsyncSession=Depends(get_db)):
+
+    conversation = await get_conversation(db,message.conversation_id)
+
+    if conversation is None:
+        return {}
+
+    messages = await get_messages(db, message.conversation_id)
+    history = build_get_messages(history=messages)
+
+    resp = await handle(user_query=message.message, history=history)
+    # resp = await query_formulate(user_query=message.message, history=history)
+
+    return {
+        "response": resp
+    }
