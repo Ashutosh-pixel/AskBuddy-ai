@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schema.document_schema import Document
 
 
-async def save_metadata_db(user_id: UUID, filename: str, stored_filename:str, path:str, size:int, mime_type:str, db: AsyncSession):
+async def save_metadata_db(user_id: UUID, filename: str, stored_filename:str, path:str, size:int, mime_type:str, conversation_id: UUID, db: AsyncSession):
     try:
         document = Document(
             original_filename=filename,
@@ -15,7 +15,8 @@ async def save_metadata_db(user_id: UUID, filename: str, stored_filename:str, pa
             mime_type=mime_type,
             size=size,
             status="uploaded",
-            user_id=user_id
+            user_id=user_id,
+            conversation_id=conversation_id
         )
 
         db.add(document)

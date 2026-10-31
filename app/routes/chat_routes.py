@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logger import logger
 from app.database.connection import get_db
 from app.models.chat_model import ChatRequest
+from app.models.query_model import CustomQuery
 from app.services.build_gpt_messages_service import build_get_messages
 from app.services.chat_service import process_chat
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -103,17 +104,19 @@ async def chat_stream(request: Request,message: ChatRequest, db: AsyncSession=De
     )
 
 @chatRouter.post("/queryrewrite")
-async def query_rewrite(message: ChatRequest, db: AsyncSession=Depends(get_db)):
+async def query_rewrite(request: Request, payload: CustomQuery, db: AsyncSession=Depends(get_db)):
 
-    conversation = await get_conversation(db,message.conversation_id)
+    conversation = await get_conversation(db,payload.conversation_id)
 
     if conversation is None:
         return {}
 
-    messages = await get_messages(db, message.conversation_id)
-    history = build_get_messages(history=messages)
+    messages = await get_messages(db, payload.conversation_id)
+    chat_history = build_get_messages(history=messages)
 
-    resp = await handle(user_query=message.message, history=history)
+    print("History", chat_history)
+
+    resp = await handle(request=request, top_k=payload.top_k, user_query=payload.text, chat_history=chat_history, conversation_id=conversation.id, db=db)
     # resp = await query_formulate(user_query=message.message, history=history)
 
     return {

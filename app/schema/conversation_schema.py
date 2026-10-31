@@ -10,6 +10,7 @@ from app.database.base import Base
 if TYPE_CHECKING:
     from app.schema.chatmessage_schema import Chatmessage
     from app.schema.user_schema import User
+    from app.schema.document_schema import Document
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -25,3 +26,4 @@ class Conversation(Base):
 
     messages: Mapped[list["Chatmessage"]] = relationship(back_populates="conversation")
     user: Mapped["User"] = relationship(back_populates="conversations")
+    documents: Mapped[list["Document"]] = relationship(back_populates="conversation")

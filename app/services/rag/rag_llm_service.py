@@ -1,11 +1,11 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from groq import AsyncGroq
 
 load_dotenv()
 
-client = Groq(
+client = AsyncGroq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -40,8 +40,8 @@ client = Groq(
 
 #     return chat_completion.choices[0].message.content
 
-def RAG_llm(prompt: str):
-    chat_completion = client.chat.completions.create(
+async def RAG_llm(prompt: str):
+    chat_completion = await client.chat.completions.create(
         messages=[
             {
                 "role": "system",

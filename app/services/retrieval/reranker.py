@@ -4,25 +4,20 @@ class Reranker:
     def __init__(self, model: str):
         self.model = CrossEncoder(model)
 
-    def rerank(self, query:str, chunks:list[str]):
+    def rerank(self, queries: list[str], chunks: list[str]):
 
-        pairs = [[query,chunk] for chunk in chunks]
+        pairs = [
+            [query, chunk]
+            for query in queries
+            for chunk in chunks
+        ]
 
         scores = self.model.predict(pairs)
 
-        # results = []
+        # Reshape scores: queries x chunks
+        scores = scores.reshape(len(queries), len(chunks))
 
-        # for chunk, score in zip(chunks,scores):
-        #     results.append({
-        #         "text": chunk,
-        #         "score": score
-        #     })
+        # Take maximum score for each chunk
+        final_scores = scores.max(axis=0)
 
-        # results.sort(
-        #     key=lambda x: x["score"],
-        #     reverse=True
-        # )
-
-        # return results[:top_k]
-
-        return scores
+        return final_scores

@@ -8,6 +8,6 @@ from app.services.document.document_DB_service import save_metadata_db
 from app.services.document.document_S3_service import upload_file
 
 
-async def document_service(user_id: UUID, file: UploadFile, db:AsyncSession=Depends(get_db)):
+async def document_service(user_id: UUID, file: UploadFile, conversation_id: UUID, db:AsyncSession=Depends(get_db)):
     s3_data = await upload_file(file=file)
-    return await save_metadata_db(user_id, s3_data["filename"], s3_data["stored_filename"], s3_data["key"], s3_data["size"], s3_data["type"], db)
+    return await save_metadata_db(user_id, s3_data["filename"], s3_data["stored_filename"], s3_data["key"], s3_data["size"], s3_data["type"], conversation_id=conversation_id, db=db)

@@ -3,6 +3,7 @@ from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from fastapi import Request
+from qdrant_client import models
 from qdrant_client.models import FieldCondition, MatchValue, PointStruct, Filter
 from app.services.retrieval.reranker import Reranker
 from app.services.vector.qdrant_connection import client
@@ -66,46 +67,62 @@ async def similarity_search(request: Request, user_id: UUID, query:str, embeddin
     return "\n\n".join([result["text"] for result in reranked])
 
 
+
 async def retrieved_grouped_document_chunks(
     request: Request,
-    query: str,
-    embedding: list[float],
+    queries: list[str],
+    embeddings: list[list[float]],
     conversation_id: UUID,
     top_k_qdrant: int = 20,
     top_k_final: int = 3
 ) -> Dict[str, Any]:
-    """
-    Retrieves chunks for a conversation, reranks them, and isolates chunks 
-    belonging strictly to the single most relevant document to prevent context bleeding.
-    """
-    
-    # 1. Filter Qdrant by conversation_id and fetch Top-K chunks
-    response = await client.query_points(
+
+    # 1. Batch Qdrant search
+    batch_requests = [
+        models.QueryRequest(
+            query=embedding,
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="conversation_id",
+                        match=MatchValue(value=str(conversation_id))
+                    )
+                ]
+            ),
+            with_payload=True,
+            limit=top_k_qdrant
+        )
+        for embedding in embeddings
+    ]
+
+    response = await client.query_batch_points(
         collection_name=os.getenv("COLLECTION_NAME"),
-        query=embedding,  # Your BGE vector generation function
-        query_filter= Filter(
-            must=[
-                FieldCondition(
-                    key="conversation_id",
-                    match=MatchValue(value=str(conversation_id))
-                )
-            ]
-        ),
-        with_payload=True,
-        limit=top_k_qdrant
+        requests=batch_requests
     )
 
-    search_results = response.points
-    
+    # 2. Flatten and deduplicate
+    unique_hits = {}
+
+    for query_response in response:
+        for hit in query_response.points:
+            unique_hits[str(hit.id)] = hit
+
+    search_results = list(unique_hits.values())
+
     if not search_results:
         return {"winning_doc_id": None, "chunks": []}
 
-    # 2. Prepare pairs for Cross-Encoder Reranking
-    pairs = [hit.payload["text"] for hit in search_results]
-    rerank_scores = request.app.state.reranker.rerank(query=query, chunks=pairs)
-    
-    # Attach rerank score back to the hit standard payloads
+    # 3. Rerank
+    chunks = [hit.payload["text"] for hit in search_results]
+
+    rerank_scores = request.app.state.reranker.rerank(
+        queries=queries,
+        chunks=chunks
+    )
+
+    # 4. Attach scores
     scored_hits = []
+
     for hit, score in zip(search_results, rerank_scores):
         scored_hits.append({
             "document_id": hit.payload["document_id"],
@@ -114,23 +131,28 @@ async def retrieved_grouped_document_chunks(
             "rerank_score": float(score)
         })
 
-
-    # 3. Group hits by doc_id
+    # 5. Group by document
     grouped_docs = defaultdict(list)
+
     for hit in scored_hits:
         grouped_docs[hit["document_id"]].append(hit)
 
-
-    # 4. Identify the winning document based on the highest individual chunk score
+    # 6. Identify winning document
     winning_doc_id = max(
-        grouped_docs.keys(),
-        key=lambda d_id: max(chunk["rerank_score"] for chunk in grouped_docs[d_id])
+        grouped_docs,
+        key=lambda doc_id: max(
+            chunk["rerank_score"]
+            for chunk in grouped_docs[doc_id]
+        )
     )
 
-    # 5. Extract and order the top-K chunks strictly from the winning document
-    winning_doc_chunks = grouped_docs[winning_doc_id]
-    winning_doc_chunks.sort(key=lambda x: x["rerank_score"], reverse=True)
-    
+    # 7. Select top chunks
+    winning_doc_chunks = sorted(
+        grouped_docs[winning_doc_id],
+        key=lambda x: x["rerank_score"],
+        reverse=True
+    )
+
     final_chunks = winning_doc_chunks[:top_k_final]
 
     return {

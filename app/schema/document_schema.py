@@ -11,6 +11,7 @@ from app.database.base import Base
 
 if TYPE_CHECKING:
     from app.schema.user_schema import User
+    from app.schema.conversation_schema import Conversation
 
 
 class status(Enum):
@@ -35,5 +36,7 @@ class Document(Base):
         nullable=True
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id"))
 
     user:Mapped["User"] = relationship(back_populates="documents")
+    conversation:Mapped["Conversation"] = relationship(back_populates="documents")
