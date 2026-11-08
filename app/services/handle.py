@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import Request
 
-from app.services.handlers import handle_chat, handle_recall, handle_search
+from app.services.handlers import handle_chat, handle_compare, handle_recall, handle_search
 from app.services.queryIntension_service import route
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,5 +20,8 @@ async def handle(request: Request, user_query:str, top_k: int, chat_history:list
 
     if op == "search":
         return await handle_search(request, user_query=user_query, queries=plan["queries"], top_k=top_k, chat_history=chat_history[-4:], conversation_id=conversation_id, db=db)
+
+    if op == "compare":
+        return await handle_compare(request, db=db, conversation_id=conversation_id, plan=plan, user_query=user_query, chat_history=chat_history)
 
     return {"operation": plan["operation"], "queries": plan["queries"], "sides": plan["sides"]}

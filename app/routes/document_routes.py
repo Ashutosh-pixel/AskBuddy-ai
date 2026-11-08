@@ -16,8 +16,8 @@ from app.prompts.single_doc import singleDocPrompt
 documentRouter = APIRouter(prefix="/api/documents")
 
 @documentRouter.post("/upload")
-async def upload_document(user_id: UUID, file: UploadFile, db:AsyncSession=Depends(get_db)):
-    return await document_service(user_id=user_id, file=file,db=db)
+async def upload_document(user_id: UUID, file: UploadFile, conversation_id: UUID, db:AsyncSession=Depends(get_db)):
+    return await document_service(user_id=user_id, conversation_id=conversation_id, file=file,db=db)
 
 @documentRouter.get("/{documentid}")
 async def fetch_document(documentid:UUID, db:AsyncSession=Depends(get_db)):
@@ -53,7 +53,7 @@ async def search(request:Request, data: CustomQuery):
     # embeddings generate
     embeddings = embedding_service.embed_chunks(chunks=chunks)[0]
 
-    retrieved_data = await retrieved_grouped_document_chunks(request=request,query=data.text, embedding=embeddings, conversation_id=data.conversation_id, top_k_qdrant=data.top_k)
+    retrieved_data = await retrieved_grouped_document_chunks(request=request,query=data.text, embeddings=embeddings, conversation_id=data.conversation_id, top_k_qdrant=data.top_k)
     
     if not retrieved_data["chunks"]:
         return "No relevant information found in the uploaded documents."
@@ -61,7 +61,7 @@ async def search(request:Request, data: CustomQuery):
     doc_name = retrieved_data["document_name"]
     context_text = "\n\n".join([c["text"] for c in retrieved_data["chunks"]])
 
-    prompt = singleDocPrompt(doc_name,context_text,query=data.text)
+    prompt = singleDocPrompt(doc_name,context_text,user_query=data.text)
 
     # Call your LLM model here with 'prompt'
     return RAG_llm(prompt)

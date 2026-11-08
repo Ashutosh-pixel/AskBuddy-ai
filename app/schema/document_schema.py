@@ -22,11 +22,11 @@ class status(Enum):
 
 class Document(Base):
     __tablename__ = "documents"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     original_filename: Mapped[str] = mapped_column(VARCHAR(100))
     stored_filename: Mapped[str] = mapped_column(VARCHAR(100))
     file_path: Mapped[str] = mapped_column(TEXT)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     mime_type: Mapped[str] = mapped_column(VARCHAR(100))
     size: Mapped[int] = mapped_column(INTEGER)
     status: Mapped[str] = mapped_column(SQLEnum(status), nullable=False)

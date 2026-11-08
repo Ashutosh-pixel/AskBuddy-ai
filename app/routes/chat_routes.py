@@ -114,8 +114,6 @@ async def query_rewrite(request: Request, payload: CustomQuery, db: AsyncSession
     messages = await get_messages(db, payload.conversation_id)
     chat_history = build_get_messages(history=messages)
 
-    print("History", chat_history)
-
     resp = await handle(request=request, top_k=payload.top_k, user_query=payload.text, chat_history=chat_history, conversation_id=conversation.id, db=db)
     # resp = await query_formulate(user_query=message.message, history=history)
 

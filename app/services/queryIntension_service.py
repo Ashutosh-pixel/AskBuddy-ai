@@ -3,6 +3,8 @@ from openai import AsyncOpenAI, OpenAI
 
 from app.prompts.rewriter_prompt import REWRITER_PROMPT
 
+from app.utils.common import _history_for_answer
+
 client = AsyncOpenAI(
     base_url="http://localhost:11434/v1",
     api_key="ollama"
@@ -13,7 +15,7 @@ VALID_OPERATIONS = ["search", "summarize", "compare", "chat", "metadata", "recal
 async def route(user_query: str, history: list[dict]):
     messages = [
         {"role": "system", "content": REWRITER_PROMPT},
-        *history[-4:],
+        *_history_for_answer(user_query, chat_history=history),
         {"role": "user", "content": user_query},
     ]
 
@@ -30,7 +32,7 @@ async def route(user_query: str, history: list[dict]):
 
 
 async def validate(plan: dict, user_query: str) -> dict:
-    op = plan.get("operation", "search")
+    op = plan.get("operation")
     if op not in VALID_OPERATIONS:
         op = "search"
 
