@@ -18,7 +18,7 @@ from app.schema.document_schema import Document
 from app.services.embedding.embedding_service import Embedding
 from app.services.message_service import save_message
 from app.services.rag.rag_llm_service import RAG_llm
-from app.services.vector.vector_service import _compare, _summarize_one, retrieved_chunks_for_compare, retrieved_grouped_document_chunks
+from app.services.vector.vector_service import _chat, _compare, _summarize_one, retrieved_chunks_for_compare, retrieved_grouped_document_chunks
 from app.utils.common import _history_for_answer
 
 load_dotenv()
@@ -56,32 +56,101 @@ async def handle_recall(user_query: str, history: list[dict]):
 
     return {"answer": response.choices[0].message.content, "sources": []}
 
-async def handle_search(request: Request, user_query: str, queries: list[str], top_k: int, chat_history: list[dict], conversation_id: uuid.UUID, db: AsyncSession):
+async def handle_search(request: Request, user_query: str, plan: dict, top_k: int, chat_history: list[dict], conversation_id: uuid.UUID, db: AsyncSession):
     embedding_service: Embedding = request.app.state.embedding_service
 
     await save_message(db, conversation_id, user_query, role="user")
 
-    # embeddings generate
+    queries = plan["queries"]
+    sides = plan.get("sides", [])
+
+    # ---- resolve optional scope ----
+    scoped_doc_ids: list[str] = []
+    scope_label = None
+
+    if sides:
+        result = await db.execute(
+            select(Document).where(
+                Document.conversation_id == conversation_id,
+                Document.status == "uploaded"
+            )
+        )
+        available_docs = result.scalars().all()
+        name_to_doc = {d.original_filename: d for d in available_docs}
+        available_names = list(name_to_doc.keys())
+
+        not_found, ambiguous = [], []
+        for side in sides:
+            r = resolve_doc(side["doc"], available_names)
+            scoped_names: list[str] = []
+            # inside the resolve loop:
+            if r["status"] == "ok":
+                doc = name_to_doc[r["doc"]]
+                scoped_doc_ids.append(str(name_to_doc[r["doc"]].id))
+                scoped_names.append(doc.original_filename)
+            
+            elif r["status"] == "ambiguous":
+                ambiguous.append((side["doc"], r["candidates"]))
+            else:
+                not_found.append(side["doc"])
+
+        if not_found:
+            msg = (f"I couldn't find: {', '.join(not_found)}.\n"
+                   f"You have: {', '.join(available_names)}")
+            await save_message(db, conversation_id, content=msg, role="assistant")
+            return {"answer": msg, "sources": []}
+
+        if ambiguous:
+            lines = [f"For '{s}', did you mean:\n" +
+                     "\n".join(f"  • {c}" for c in cands)
+                     for s, cands in ambiguous]
+            msg = "\n\n".join(lines) + "\n\nPlease reply with exact names."
+            await save_message(db, conversation_id, content=msg, role="assistant")
+            return {"answer": msg, "sources": []}
+
+        scoped_doc_ids = list(dict.fromkeys(scoped_doc_ids))
+        scope_label = ", ".join(scoped_names) if scoped_names else None
+
+    # ---- retrieve (scoped or global) ----
     embeddings = embedding_service.embed_chunks(chunks=queries)
 
-    retrieved_data = await retrieved_grouped_document_chunks(request=request,queries=queries, embeddings=embeddings, conversation_id=conversation_id, top_k_qdrant=top_k)
+    retrieved_data = await retrieved_grouped_document_chunks(
+        request=request,
+        queries=queries,
+        embeddings=embeddings,
+        conversation_id=conversation_id,
+        doc_ids=scoped_doc_ids or None,
+        top_k_qdrant=top_k,
+    )
 
     if not retrieved_data["chunks"]:
-        return "No relevant information found in the uploaded documents."
+        scope_msg = f" in {scope_label}" if scope_label else ""
+        msg = f"No relevant information found{scope_msg}."
+        await save_message(db, conversation_id, content=msg, role="assistant")
+        return {"answer": msg, "sources": []}
 
     doc_name = retrieved_data["document_name"]
-    context_text = "\n\n".join([c["text"] for c in retrieved_data["chunks"]])
+    context_text = "\n\n".join(c["text"] for c in retrieved_data["chunks"])
 
-    chat_history = _history_for_answer(user_query=user_query, chat_history=chat_history)
+    trimmed_history = _history_for_answer(
+        user_query=user_query, chat_history=chat_history
+    )
 
-    prompt = singleDocPrompt(doc_name, context_text, chat_history, user_query=queries)
+    messages = [
+        {"role": "system", "content": singleDocPrompt(
+            doc_name=doc_name,
+            context_text=context_text,
+            scope_label=scope_label,
+        )},
+        *trimmed_history,
+        {"role": "user", "content": user_query},
+    ]
 
-    answer = await RAG_llm(prompt)
+    answer = await _chat(messages)
 
-    await save_message(db,conversation_id,content=answer,role="assistant")
+    await save_message(db, conversation_id, content=answer, role="assistant")
 
-    # Call your LLM model here with 'prompt'
-    return {"answer": answer, "sources": []}
+    return {"answer": answer, "sources": [doc_name]}
 
 async def handle_compare(request: Request, db: AsyncSession, conversation_id: uuid.UUID, plan: dict, user_query: str, chat_history: list[dict]) -> dict[str, Any]:
     embedding_service = request.app.state.embedding_service
@@ -254,3 +323,34 @@ async def handle_compare(request: Request, db: AsyncSession, conversation_id: uu
         "answer": answer,
         "sources": [d["document_name"] for d in docs_out],
     }
+
+async def handle_metadata(db:AsyncSession, conversation_id: uuid.UUID, user_query: str):
+    await save_message(db, conversation_id, user_query, role="user")
+
+    result = await db.execute(select(Document).where(Document.conversation_id == conversation_id).order_by(Document.created_at.asc()))
+
+    docs = result.scalars().all()
+
+    if not docs:
+        answer = "You haven't uploaded any documents in this conversation yet."
+        await save_message(db, conversation_id, content=answer, role="assistant")
+        return {"answer": answer, "sources": []}
+
+    ready = [d for d in docs if d.status == "uploaded"]
+    processing = [d for d in docs if d.status != "uploaded"]
+
+    lines = []
+    lines.append(f"You have {len(docs)} document(s) in this conversation:\n")
+
+    for i, d in enumerate(ready, 1):
+        lines.append(f"{i}. {d.original_filename}")
+
+    if processing:
+        lines.append("\nStill processing:")
+        for d in processing:
+            lines.append(f"• {d.original_filename} ({d.status})")
+
+    answer = "\n".join(lines)
+
+    await save_message(db, conversation_id, content=answer, role="assistant")
+    return {"answer": answer, "sources": [d.original_filename for d in docs]}

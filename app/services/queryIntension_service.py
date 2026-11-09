@@ -53,7 +53,14 @@ async def validate(plan: dict, user_query: str) -> dict:
         if not queries:
             queries = [user_query]
         queries = queries[:3]
-        sides = []
+
+        seen = set()
+        deduped = []
+        for s in sides:
+            if s["doc"] not in seen:
+                seen.add(s["doc"])
+                deduped.append(s)
+        sides = deduped[:4]
 
     elif op == "compare":
         # queries may be []  →  whole-doc compare (valid!)

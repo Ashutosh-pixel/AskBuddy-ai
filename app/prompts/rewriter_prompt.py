@@ -30,7 +30,13 @@ Fields:
       (e.g. "compare a.pdf with b.pdf"), queries = [].
     • For all other operations: []
 
-- "sides": for "summarize" and "compare" ONLY.
+- "sides": for "search", "summarize", and "compare".
+    • For "search": OPTIONAL scope filter.
+        - If the user names specific docs ("in elena.pdf, what is X",
+          "find Y in a.pdf and b.pdf"), list ONLY those docs.
+        - If no doc is named, sides = []   (means: search all docs).
+        - The query itself goes in "queries" — do NOT put the doc
+          name inside "queries".
     • One {"doc": "<name>"} per document the user targets.
     • Use the exact names the user said (e.g. "docx", "a.pdf").
     • For "summarize":
@@ -73,6 +79,21 @@ User: "what does section 4.2 say about X-402 errors"
 → {"operation": "search",
    "queries": ["section 4.2 content", "X-402 error handling"], "sides": []}
 
+User: "what does elena.pdf say about education?"
+→ {"operation": "search",
+   "queries": ["education"],
+   "sides": [{"doc": "elena.pdf"}]}
+
+User: "find notice period in contract A and contract B"
+→ {"operation": "search",
+   "queries": ["notice period"],
+   "sides": [{"doc": "contract A"}, {"doc": "contract B"}]}
+
+User: "what's the payment module?"
+→ {"operation": "search",
+   "queries": ["payment module"],
+   "sides": []}
+   
 User: "summarize this doc"
 → {"operation": "summarize", "queries": [], "sides": []}
 

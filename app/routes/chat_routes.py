@@ -13,7 +13,7 @@ from app.services.chat_service import process_chat
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.services.conversation_service import create_conversation, get_conversation
-from app.services.handle import handle
+from app.services.handle import dispatch
 from app.services.llm.query_formulate_service import query_formulate
 from app.services.message_service import get_messages
 from app.services.process_chat_stream_service import process_chat_stream
@@ -114,7 +114,7 @@ async def query_rewrite(request: Request, payload: CustomQuery, db: AsyncSession
     messages = await get_messages(db, payload.conversation_id)
     chat_history = build_get_messages(history=messages)
 
-    resp = await handle(request=request, top_k=payload.top_k, user_query=payload.text, chat_history=chat_history, conversation_id=conversation.id, db=db)
+    resp = await dispatch(request=request, top_k=payload.top_k, user_query=payload.text, chat_history=chat_history, conversation_id=conversation.id, db=db)
     # resp = await query_formulate(user_query=message.message, history=history)
 
     return {

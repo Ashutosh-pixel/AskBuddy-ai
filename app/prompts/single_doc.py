@@ -1,6 +1,14 @@
-def singleDocPrompt(doc_name: str, context_text: list[str], chat_history: list[dict], user_query: list[str]):
-    return f"""
-    You are an AI assistant answering user questions based strictly on the provided document context.
+def singleDocPrompt(doc_name: str, context_text: str, scope_label: str | None) -> str:
+    scope_note = ""
+    if scope_label:
+        scope_note = (
+            f"\nThe user scoped this query to: {scope_label}. "
+            f"If the answer isn't in the provided context, say "
+            f"the information is not available in {scope_label}."
+        )
+
+    return f"""You are an AI assistant answering questions strictly from the
+    provided document context.
 
     DOCUMENT SOURCE:
     {doc_name}
@@ -8,19 +16,13 @@ def singleDocPrompt(doc_name: str, context_text: list[str], chat_history: list[d
     DOCUMENT CONTEXT:
     {context_text}
 
-    CONVERSATION HISTORY:
-    {chat_history}
-
-    CURRENT USER QUESTION:
-    {user_query}
-
     INSTRUCTIONS:
-    1. Use the conversation history only to understand the user's intent, references, and follow-up questions.
-    2. Answer factual questions strictly using the provided document context.
-    3. Do not use information from conversation history as a factual source.
-    4. Do not combine information from other documents or external knowledge.
-    5. If the question cannot be answered using the document context, clearly state that the information is not available in the provided document.
-    6. Resolve ambiguous references such as "it", "that", "what about this?" using conversation history.
-    7. Treat the current user question as the primary question to answer.
-    8. Provide a clear, concise, and natural response. Avoid repeating unnecessary information.
+    1. Answer factual questions strictly using the provided document context.
+    2. Do not use information from the conversation history as a factual source.
+    3. Do not combine information from other documents or external knowledge.
+    4. If the question cannot be answered from the context, clearly say the
+    information is not available in the provided document.
+    5. Use the conversation history only to understand references ("it", "that",
+    "the above") — not as a factual source.
+    6. Be clear, concise, and natural. Avoid repeating the context verbatim.{scope_note}
     """

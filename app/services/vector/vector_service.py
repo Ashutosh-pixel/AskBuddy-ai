@@ -74,26 +74,28 @@ async def similarity_search(request: Request, user_id: UUID, query:str, embeddin
 
 
 
-async def retrieved_grouped_document_chunks(
-    request: Request,
-    queries: list[str],
-    embeddings: list[list[float]],
-    conversation_id: UUID,
-    top_k_qdrant: int = 20,
-    top_k_final: int = 3
-) -> Dict[str, Any]:
+async def retrieved_grouped_document_chunks(request: Request, queries: list[str], embeddings: list[list[float]], conversation_id: UUID, doc_ids: list[str] | None = None, top_k_qdrant: int = 20, top_k_final: int = 3) -> Dict[str, Any]:
+
+    must=[
+        FieldCondition(
+            key="conversation_id",
+            match=MatchValue(value=str(conversation_id))
+        )
+    ]
+
+    if doc_ids:
+        must.append(
+            FieldCondition(
+                    key="document_id",
+                    match=MatchAny(any=doc_ids)
+        ))
 
     # 1. Batch Qdrant search
     batch_requests = [
         models.QueryRequest(
             query=embedding,
             filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="conversation_id",
-                        match=MatchValue(value=str(conversation_id))
-                    )
-                ]
+                must=must
             ),
             with_payload=True,
             limit=top_k_qdrant
